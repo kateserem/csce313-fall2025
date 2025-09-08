@@ -4,9 +4,6 @@ LE2: Introduction to Unnamed Pipes
 #include <unistd.h> // pipe, fork, dup2, execvp, close
 #include <iostream> 
 
-
-#include <sys/wait.h> //for wait
-
 using namespace std;
 
 int main () {
