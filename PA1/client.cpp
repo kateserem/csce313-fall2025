@@ -7,9 +7,17 @@
 	
 	Please include your Name, UIN, and the date below
 	Name:
-	UIN:
+	UIN: 
 	Date:
 */
+
+//TASK 4: 
+	//4.1: 15 points DONE
+	//4.2 15 points
+	//4.3 35 points
+	//4.4 15 points
+	//4.5 5 points DONE
+
 #include "common.h"
 #include "FIFORequestChannel.h"
 
@@ -40,6 +48,14 @@ int main (int argc, char *argv[]) {
 		}
 	}
 
+/////////TASK 4: Run server as a child process////////////
+	pid_t child = fork();
+	if (child == 0) {
+		execl("./server", "server", (char *)nullptr);
+		perror("execl ./server");
+	}
+
+//////////////////////////////////////////////////////////
     FIFORequestChannel chan("control", FIFORequestChannel::CLIENT_SIDE);
 	
 	// example data point request
