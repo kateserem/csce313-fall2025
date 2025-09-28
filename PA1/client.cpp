@@ -6,16 +6,16 @@
     Date: 2/8/20
 	
 	Please include your Name, UIN, and the date below
-	Name:
-	UIN: 
-	Date:
+	Name: Kate Serem
+	UIN: 521009750
+	Date: 9/28/2025
 */
 
 //TASK 4: 
 	//4.1: 15 points DONE
-	//4.2 15 points
-	//4.3 35 points
-	//4.4 15 points
+	//4.2 15 points DONE
+	//4.3 35 points DONE
+	//4.4 15 points DONE
 	//4.5 5 points DONE
 
 #include "common.h"
@@ -34,30 +34,30 @@ int main (int argc, char *argv[]) {
 	bool has_t = false; //-t option
 	bool use_new_channel = false; //-c option
 
-	string filename = "";
-	while ((opt = getopt(argc, argv, "p:t:e:f:c")) != -1) {
+	string filename = ""; //the filename
+
+	while ((opt = getopt(argc, argv, "p:t:e:f:c")) != -1) { //command line arguments
 		switch (opt) {
-			case 'p':
+			case 'p': //patient number
 				p = atoi (optarg);
 				break;
-			case 't':
+			case 't'://time
 				t = atof (optarg);
 				has_t = true;
 				break;
-			case 'e':
+			case 'e': //ecg number
 				e = atoi (optarg);
 				break;
-			case 'f':
+			case 'f': //filename
 				filename = optarg;
 				break;
-			case 'c':
+			case 'c': //use a new channel
 				use_new_channel = true;
 				break;
 
-
 		}
 	}
-
+ 
 /////////TASK 4.1 : Run server as a child process////////////
 	pid_t child = fork();
 
@@ -71,34 +71,38 @@ int main (int argc, char *argv[]) {
 ////////////TASK 4.2: Requesting data points/////////////////////////////
 	// you can write your code here
 
-	FIFORequestChannel chan("control", FIFORequestChannel::CLIENT_SIDE);
+	FIFORequestChannel chan("control", FIFORequestChannel::CLIENT_SIDE); //the control chnanel
 
 ///////////Task 4.4: Requesting a new channel//////////part1/////////////////////
-	FIFORequestChannel* active = &chan;  // active channel
-	FIFORequestChannel* newchan = nullptr; // point to the new channel
+	FIFORequestChannel* active = &chan;  //the active channel
+	FIFORequestChannel* newchan = nullptr; //pointng to the new channel
 
 	if (use_new_channel) { // if -c option is specified
-		MESSAGE_TYPE req = NEWCHANNEL_MSG; //creating new channel request message
-        chan.cwrite(&req, sizeof(req)); //send request to server
-        char newname[MAX_MESSAGE] = {0}; //buffer to hold new channel name
+		MESSAGE_TYPE mes = NEWCHANNEL_MSG; //creating new channel request message
+        chan.cwrite(&mes, sizeof(mes)); //send request to server
+
+        char newname[30] = {0}; //buffer to hold new channel name (TA stated to do 30 on discord announcements!)
         chan.cread(newname, sizeof(newname)); //read new channel name from server
+		
         newchan = new FIFORequestChannel(newname, FIFORequestChannel::CLIENT_SIDE); //creating new channel
         active = newchan;//update active channel to new channel
 	}	
 ////////////////////////////////////////////////////////////////////////////////////
-	char buf[MAX_MESSAGE]; // 256
+	char buf[MAX_MESSAGE]; // 256 bytes
+
 
 	if (has_t && e > 0) {
-		datamsg x(p, t, e);
-		memcpy(buf, &x, sizeof(datamsg));
-		active->cwrite(buf, sizeof(datamsg));
-		double reply;
-		active->cread(&reply, sizeof(double));
+			//follow the example provided
+		datamsg x(p, t, e); //create data message
+		memcpy(buf, &x, sizeof(datamsg)); //copy the data message
+		active->cwrite(buf, sizeof(datamsg)); //send the data message
+		double reply; //a place to hold the reply
+		active->cread(&reply, sizeof(double)); //read the reply
 		cout << "For person " << p << ", at time " << t << ", the value of ecg " << e << " is " << reply << endl;
 	} else if (filename.empty()) {	
 
-		string path = "received/x" + to_string(p) + ".csv";
-		FILE* fp = fopen(path.c_str(), "w");
+		string path = "received/x" + to_string(p) + ".csv"; //this is the file path to store the data
+		FILE* fp = fopen(path.c_str(), "w"); //open for writing since we want to write in the data
 
 		for (int i=0; i <1000; i++) {//1000 data points
 
@@ -120,7 +124,7 @@ int main (int argc, char *argv[]) {
 			active->cread(&reply2, sizeof(double));
 			// cout << "For person " << p << ", at time " << data_time << ", the value of ecg 2 is " << reply2 << endl;
 
-			fprintf(fp, "%g,%g,%g\n", data_time, reply1, reply2);
+			fprintf(fp, "%g,%g,%g\n", data_time, reply1, reply2); //write it to the file
 		}
 		fclose(fp);
 	}
