@@ -1,0 +1,14 @@
+the client transfers files in fixed 256 chiunks
+each chunk requires a request and a reply over the FIFO
+the more bytes there the more chunks which means more round trips
+resulting in a roughly growth linearly with the file size
+so time is proportional to the file size under 256 byte messages
+
+in the image we see an immediate slop change at 10^7
+at this size the file is broken into many pieces
+meaning for each piece it takes a little more time for every piece
+hence why we see an increase in the slope
+
+so at 10^7 bytes the change in the slope is where the time cost per chunk outweigh the fixed startup time cost
+
+
