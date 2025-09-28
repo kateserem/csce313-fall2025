@@ -31,10 +31,11 @@ int main (int argc, char *argv[]) {
 	double t = 0.0;  //time (every 4ms)
 	int e = 1;  //ecg num	(each patient have 2)
 
-	bool has_t = false;
+	bool has_t = false; //-t option
+	bool use_new_channel = false; //-c option
 
 	string filename = "";
-	while ((opt = getopt(argc, argv, "p:t:e:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "p:t:e:f:c")) != -1) {
 		switch (opt) {
 			case 'p':
 				p = atoi (optarg);
@@ -49,6 +50,10 @@ int main (int argc, char *argv[]) {
 			case 'f':
 				filename = optarg;
 				break;
+			case 'c':
+				use_new_channel = true;
+				break;
+
 
 		}
 	}
@@ -67,14 +72,28 @@ int main (int argc, char *argv[]) {
 	// you can write your code here
 
 	FIFORequestChannel chan("control", FIFORequestChannel::CLIENT_SIDE);
+
+///////////Task 4.4: Requesting a new channel//////////part1/////////////////////
+	FIFORequestChannel* active = &chan;  // active channel
+	FIFORequestChannel* newchan = nullptr; // point to the new channel
+
+	if (use_new_channel) { // if -c option is specified
+		MESSAGE_TYPE req = NEWCHANNEL_MSG; //creating new channel request message
+        chan.cwrite(&req, sizeof(req)); //send request to server
+        char newname[MAX_MESSAGE] = {0}; //buffer to hold new channel name
+        chan.cread(newname, sizeof(newname)); //read new channel name from server
+        newchan = new FIFORequestChannel(newname, FIFORequestChannel::CLIENT_SIDE); //creating new channel
+        active = newchan;//update active channel to new channel
+	}	
+////////////////////////////////////////////////////////////////////////////////////
 	char buf[MAX_MESSAGE]; // 256
 
 	if (has_t && e > 0) {
 		datamsg x(p, t, e);
 		memcpy(buf, &x, sizeof(datamsg));
-		chan.cwrite(buf, sizeof(datamsg));
+		active->cwrite(buf, sizeof(datamsg));
 		double reply;
-		chan.cread(&reply, sizeof(double));
+		active->cread(&reply, sizeof(double));
 		cout << "For person " << p << ", at time " << t << ", the value of ecg " << e << " is " << reply << endl;
 	} else if (filename.empty()) {	
 
@@ -88,17 +107,17 @@ int main (int argc, char *argv[]) {
 			// e1
 			datamsg e1(p, data_time, 1);
 			memcpy(buf, &e1, sizeof(datamsg));
-			chan.cwrite(buf, sizeof(datamsg));
+			active->cwrite(buf, sizeof(datamsg));  
 			double reply1;
-			chan.cread(&reply1, sizeof(double));
+			active->cread(&reply1, sizeof(double));
 			// cout << "For person " << p << ", at time " << data_time << ", the value of ecg 1 is " << reply1 << endl;
 
 			//e2
 			datamsg e2(p, data_time, 2);
 			memcpy(buf, &e2, sizeof(datamsg));
-			chan.cwrite(buf, sizeof(datamsg));
+			active->cwrite(buf, sizeof(datamsg));   
 			double reply2;
-			chan.cread(&reply2, sizeof(double));
+			active->cread(&reply2, sizeof(double));
 			// cout << "For person " << p << ", at time " << data_time << ", the value of ecg 2 is " << reply2 << endl;
 
 			fprintf(fp, "%g,%g,%g\n", data_time, reply1, reply2);
@@ -107,20 +126,6 @@ int main (int argc, char *argv[]) {
 	}
 
 /////////////////////////////////////////////////////////////////////////////
-
-
-    // // sending a non-sense message, you need to change this
-	// filemsg fm(0, 0);
-	// string fname = "teslkansdlkjflasjdf.dat";
-	
-	// int len = sizeof(filemsg) + (fname.size() + 1);
-	// char* buf2 = new char[len];
-	// memcpy(buf2, &fm, sizeof(filemsg));
-	// strcpy(buf2 + sizeof(filemsg), fname.c_str());
-	// chan.cwrite(buf2, len);  // I want the file length;
-
-	// delete[] buf2;
-	
 
 /////////////4.3: Requesting files////////////////////////////////////////
 	if (!filename.empty()) {
@@ -132,11 +137,11 @@ int main (int argc, char *argv[]) {
 		char* buf2 = new char[len]; // allocate a buffer of that size
 		memcpy(buf2, &fm, sizeof(filemsg)); // copy the filemsg struct
 		strcpy(buf2 + sizeof(filemsg), fname.c_str()); // append the filename string
-		chan.cwrite(buf2, len);  // I want the file length;
+		active->cwrite(buf2, len);    // I want the file length;
 
 		
 		__int64_t filesize; //hold the file size of the servers reply
-    	chan.cread(&filesize, sizeof(__int64_t));  //read the file size from the server into filesize variable
+    	active->cread(&filesize, sizeof(__int64_t));  //read the file size from the server into filesize variable
 		
 
 		//put the received file under "received" with the same name
@@ -159,8 +164,8 @@ int main (int argc, char *argv[]) {
 			fm.length  = chunk; //update the length
 			memcpy(buf2, &fm, sizeof(filemsg)); // copy the filemsg struct     
 
-			chan.cwrite(buf2, len); // request that chunk                   
-			int n = chan.cread(databuf, chunk); // read the chunk from the server    
+			active->cwrite(buf2, len);  // request that chunk                   
+			int n = active->cread(databuf, chunk);  // read the chunk from the server    
 			fwrite(databuf, 1, (size_t)n, fp);  // write to the output file      
 
 			offset += n; //increment the offset by the number of bytes read from the server
@@ -170,6 +175,15 @@ int main (int argc, char *argv[]) {
 		fclose(fp); //close the output file
 		delete[] buf2;
 	}
+
+//////////////TASK 4.4 Requesting a new channel//////////part2/////////////////////
+
+    if (newchan) {  //check if new channel was created
+        MESSAGE_TYPE qm = QUIT_MSG; // tell server to close the new channel
+        newchan->cwrite(&qm, sizeof(qm));  // send the message
+        delete newchan; //free memory
+    }
+////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////
 	// closing the channel    
