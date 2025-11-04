@@ -36,7 +36,9 @@ int main () {
         getcwd(current_directory, sizeof(current_directory)); //getting current direcotry path
 
         const char* user = getenv("USER");//get user       
-        if (!user) user = "user";                          
+        if (!user) user = getenv("LOGNAME");
+        if (!user) user = getlogin();   
+        if (!user) user = "root";                  
         cout << month << " " << user << ":" << current_directory << "$ ";
 /////////////////////////////////////////////////////////////////////////
 
@@ -81,7 +83,9 @@ int main () {
             getcwd(current_directory, sizeof(current_directory));//get the current direcotry          
             string current = current_directory;                          
 
-            if (first->args[1] == "-") { //if cd -  
+            if (first->args.size() ==1) {
+                //do nothing?
+            } else if (first->args[1] == "-") { //if cd -  
                 if (!prev_directory.empty()) { //ensure we saved the prev direcotry
                     if (chdir(prev_directory.c_str()) < 0) {//attempt to change direcotries
                         perror("chdir"); //error occured
@@ -99,6 +103,7 @@ int main () {
                 } 
                
             }
+            continue;
                                    
         }
 
